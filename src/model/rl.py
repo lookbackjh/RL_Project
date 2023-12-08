@@ -29,7 +29,7 @@ class FeatureSelection():
         cur_feature=list(cur_feature)
 
         cur_x=self.train_x[:,cur_feature]
-        rf=SVC()
+        rf=SVC(kernel='rbf', C=0.1)
         rf.fit(cur_x,self.train_y)
         cur_test_x=self.test_x[:,cur_feature]
 

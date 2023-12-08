@@ -7,9 +7,9 @@ from sklearn.model_selection import train_test_split
 parser = argparse.ArgumentParser(description='RL based Feature Selection')
 #parser.add_argument('--seed', type=int, default=12345, help='random seed')
 
-parser.add_argument('--episode_number', type=int, default=5000, help='number of episodes')
-parser.add_argument('--alpha', type=float, default=0.9, help='learning rate')
-parser.add_argument('--gamma', type=float, default=0.8, help='discount factor')
+parser.add_argument('--episode_number', type=int, default=50000, help='number of episodes')
+parser.add_argument('--alpha', type=float, default=0.5, help='learning rate')
+parser.add_argument('--gamma', type=float, default=0.5, help='discount factor')
 args = parser.parse_args()
 
 
