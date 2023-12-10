@@ -3,20 +3,62 @@ from sklearn.svm import SVC
 from collections import defaultdict
 from tqdm import tqdm
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
 class FeatureSelection():
 
-    def __init__(self, args,train_x,train_y ,test_x,test_y):
+    def __init__(self, args,data_X,data_Y):
         self.args = args
-        self.train_x=train_x
-        self.train_y=train_y
-        self.test_x=test_x  
-        self.test_y=test_y
-        self.feature_size=train_x.shape[1]
+        self.data_X=data_X
+        self.data_Y=data_Y
+        self.feature_size=data_X.shape[1]
         self.aormean=np.zeros(self.feature_size)
         self.cur_value=0
         self.worsening_count=0
         self.aorcount=np.zeros(self.feature_size)
+        # feature_size* feature_size matrix
+        self.correlation_=np.corrcoef(data_X,rowvar=False)
 
+    
+    def predefined_reward(self,cur_feature:tuple,next_feature:tuple):
+
+        # cur_x to be elementwise multiplication of train_x and cur_feature with is binary
+        
+        # cur feature is tuple of indexes, so need to convert it to array
+        if len(cur_feature)==0:
+            return 0
+
+
+        cur_feature=list(cur_feature)
+        next_feature=list(next_feature)
+        new_feature=set(next_feature).difference(set(cur_feature))
+        new_feature=list(new_feature)[0]
+
+        # select cur_best aor index from cur_feature
+        cur_best_aor_idx=np.argmax(self.aormean[cur_feature])
+        
+
+        train_X,test_X,train_Y,test_Y=train_test_split(self.data_X,self.data_Y,test_size=0.4)
+
+        correlation_matrix=np.corrcoef(train_X,rowvar=False)
+        # define correlation loss as correaltion between cur_best_aor_idx and new_feature
+        correlation_loss=correlation_matrix[cur_best_aor_idx,new_feature]
+
+
+        
+        svc_cur=SVC(kernel='rbf', C=1)
+        svc_cur.fit(train_X[:,cur_feature],train_Y)
+        cur_test_x=test_X[:,cur_feature]
+        cur_reward=svc_cur.score(cur_test_x, test_Y )
+
+        svc_next=SVC(kernel='rbf', C=1)
+        svc_next.fit(train_X[:,next_feature],train_Y)
+        next_test_x=test_X[:,next_feature]
+        next_reward=svc_next.score(next_test_x, test_Y )
+
+        total_reward=next_reward-cur_reward-abs(correlation_loss)*self.args.correlation_loss_coefficient
+
+        return total_reward
+    
     def reward(self,cur_feature:tuple):
     
         # cur_x to be elementwise multiplication of train_x and cur_feature with is binary
@@ -28,12 +70,16 @@ class FeatureSelection():
 
         cur_feature=list(cur_feature)
 
-        cur_x=self.train_x[:,cur_feature]
-        rf=SVC(kernel='rbf', C=0.1)
-        rf.fit(cur_x,self.train_y)
-        cur_test_x=self.test_x[:,cur_feature]
+        train_X,test_X,train_Y,test_Y=train_test_split(self.data_X,self.data_Y,test_size=0.4)
 
-        return rf.score(cur_test_x, self.test_y )
+
+
+        cur_x=train_X[:,cur_feature]
+        rf=SVC(kernel='rbf', C=1)
+        rf.fit(cur_x,train_Y)
+        cur_test_x=test_X[:,cur_feature]
+
+        return rf.score(cur_test_x, test_Y )
 
     def exploit_based(self,cur_feature:tuple):
         
@@ -80,7 +126,12 @@ class FeatureSelection():
         # update Values of current state, successor state, and AOR values
         frozen_cur_feature=frozenset(cur_feature)   
         frozen_next_feature=frozenset(next_feature)
-        self.Value[frozen_cur_feature]+=self.args.alpha*(self.reward(frozen_next_feature)-self.reward(frozen_cur_feature)+self.args.gamma*self.Value[frozen_next_feature]-self.Value[frozen_cur_feature])
+
+        if self.args.predefined_reward:
+            self.Value[frozen_cur_feature]+=self.args.alpha*(self.predefined_reward(frozen_cur_feature,frozen_next_feature)+self.args.gamma*self.Value[frozen_next_feature]-self.Value[frozen_cur_feature])
+
+        else:
+            self.Value[frozen_cur_feature]+=self.args.alpha*(self.reward(frozen_next_feature)-self.reward(frozen_cur_feature)+self.args.gamma*self.Value[frozen_next_feature]-self.Value[frozen_cur_feature])
 
 
         # Update AOR 
@@ -90,7 +141,13 @@ class FeatureSelection():
         self.aorcount[selected_feature]+=1
         k=self.aorcount[selected_feature]
 
-        rewarddiff=self.reward(frozen_next_feature)-self.reward(frozen_cur_feature)
+    
+
+        if self.args.predefined_reward:
+            rewarddiff=self.predefined_reward(frozen_cur_feature,frozen_next_feature)
+
+        else:
+            rewarddiff=self.reward(frozen_next_feature)-self.reward(frozen_cur_feature)
         self.aormean[selected_feature]=(rewarddiff+(k-1)*self.aormean[selected_feature])/k
         # Update V_counter
         self.V_counter[frozen_next_feature]+=1
@@ -102,8 +159,29 @@ class FeatureSelection():
         
         # select the feature that has not been selected before. uniformly
         feature_candidates=[i for i in range(self.feature_size) if i not in cur_feature]
+        new_feature=0
+        if self.args.predefined_reward and len(cur_feature)!=0:
+            # new_feature=np.random.choice(feature_candidates)
+            # pass
+            #if predefined rewards, I want to explore feature that have high correlation with the current feature
+            # 50% of the time, I want to select the feature that has the highest AOR value
+            if np.random.rand()<0.3:
+                cur_feature_list=list(cur_feature)
+                cur_best_aor_idx=np.argmax(self.aormean[cur_feature_list])
+                new_feature_candidate=np.argsort(self.correlation_[cur_best_aor_idx,:])[::-1]
+                new_feature_candidate=[i for i in new_feature_candidate if i not in cur_feature_list]
+                new_feature=new_feature_candidate[0]
+            else:
+                new_feature=np.random.choice(feature_candidates)
         
-        new_feature=np.random.choice(feature_candidates)
+
+
+
+        else:
+            new_feature=np.random.choice(feature_candidates)
+        
+        
+        
         next_state=cur_feature+(new_feature,)
         cur_feature_frozen=frozenset(cur_feature)
         #next_state_frozen=frozenset(next_state)
