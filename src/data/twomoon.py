@@ -15,7 +15,7 @@ class Twomoon_synthetic:
         self.unlabel_size=unlabel_size
         self.labeled_x, self.labeled_y = self.create_data(seed=seed)
     
-    def get_noisy_two_moons(self, n_samples=1000, n_feats=100, noise_twomoon=0.1, noise_nuisance=1.0, seed_=1234):
+    def get_noisy_two_moons(self, n_samples=1000, n_feats=100, noise_twomoon=0.3, noise_nuisance=1.0, seed_=1234):
         X, Y = make_moons(n_samples=n_samples, noise=noise_twomoon, random_state=seed_)
         np.random.seed(seed_)
         N = np.random.normal(loc=0., scale=noise_nuisance, size=[n_samples, n_feats - 2])
@@ -45,7 +45,7 @@ class Twomoon_synthetic:
         # 0 and 10 indicates the two important features for the two moons dataset
         return np.array([0,10])
 
-    def create_data(self, seed=12345, sigma_n=1.0, max_labeled_samples=500, blocksize=10, block_noise=0.5):
+    def create_data(self, seed=12345, sigma_n=1.0, max_labeled_samples=100, blocksize=10, block_noise=0.5):
         labeled_X, labeled_y, _ = self.get_noisy_two_moons(n_samples=self.label_size, n_feats=10, noise_twomoon=0.3,
                                                           noise_nuisance=sigma_n, seed_=seed)
         unlabeled_X, unlabeled_y, _ = self.get_noisy_two_moons(n_samples=self.unlabel_size, n_feats=10, noise_twomoon=0.3,
