@@ -15,7 +15,7 @@ parser.add_argument('--gamma', type=float, default=0.3, help='discount factor')
 parser.add_argument('--epsilon', type=float, default=0.1, help='epsilon greedy')
 parser.add_argument('--predefined_reward', type=bool, default=False, help='predefined reward')
 parser.add_argument('--correlation_loss_coefficient', type=float, default=0.01, help='correlation loss coefficient')
-parser.add_argument('--datatype', type=str, default="arcene", help='arcene twomoon, spambase available')
+parser.add_argument('--datatype', type=str, default="twomoon", help='arcene twomoon, spambase available')
 parser.add_argument('--worsening_count', type=int, default=5, help='worsening count')   
 args = parser.parse_args()
 
@@ -48,26 +48,11 @@ if __name__ == '__main__':
 
 
         with open(str_json, 'w') as fp:
-            json.dump("aorvalues\n",fp)
-            fp.write('\n')
-            json.dump(aorvalues.tolist(), fp)
-            fp.write('\n')
-            json.dump("feature order\n",fp)
-            fp.write('\n')
-            json.dump(np.argsort(aorvalues)[::-1].tolist(), fp)
-            fp.write('\n')
-            json.dump("feature counts\n",fp)
-            fp.write('\n')
-            json.dump(rl.feature_counts.tolist(), fp)
-            fp.write('\n')
-            json.dump("predefined_reward\n",fp)
-            fp.write('\n')
-            json.dump(args.predefined_reward, fp)
-            fp.write('\n')
-            json.dump("datatype\n",fp)
-            fp.write('\n')
-            json.dump(args.datatype, fp)
-            fp.write('\n')
+            a={}
+            a["aorvalues"]=aorvalues.tolist()
+            a["feature_order"]=np.argsort(aorvalues)[::-1].tolist()
+            a["feature_counts"]=rl.feature_counts.tolist()
+            json.dump(a,fp)
 
     
     # print(train_x.shape) # sample size x feature size
